@@ -5,5 +5,5 @@ const router=express.Router();
 
 
 router.post("/login",UserController.login);
-router.post("/generate-trip",UserController.generateTrip);
+
 export default router;

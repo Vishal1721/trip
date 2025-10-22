@@ -1,5 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Calendar, DollarSign, Users, Sparkles, Plane, Hotel, Utensils, Camera, Mountain, Building2, Heart, Coffee, ShoppingBag, Music, Palette, History, TrendingUp, ArrowRight, Loader2, Check } from 'lucide-react';
+import { 
+  Mountain, 
+  Palette, 
+  Utensils, 
+  History, 
+  Music, 
+  Camera, 
+  ShoppingBag, 
+  Building2, 
+  Coffee, 
+  Heart, 
+  Hotel, 
+  Plane,
+  MapPin,
+  Calendar,
+  DollarSign,
+  Users,
+  Check,
+  ArrowRight,
+  Sparkles,
+  Loader2,
+  TrendingUp
+} from 'lucide-react';
 
 export default function App() {
   const [step, setStep] = useState(1);
@@ -16,163 +38,67 @@ export default function App() {
     travelStyle: 'balanced'
   });
 
-  // Floating icons state
   const [floatingIcons, setFloatingIcons] = useState([]);
 
-  // Initialize floating icons
   useEffect(() => {
     const icons = [
-      { id: 1, icon: '✈️', x: 10, y: 20, delay: 0 },
-      { id: 2, icon: '🏨', x: 85, y: 15, delay: 2 },
-      { id: 3, icon: '🗺️', x: 25, y: 70, delay: 4 },
-      { id: 4, icon: '🌴', x: 70, y: 65, delay: 1 },
-      { id: 5, icon: '🏛️', x: 15, y: 45, delay: 3 },
-      { id: 6, icon: '🍕', x: 80, y: 35, delay: 5 },
-      { id: 7, icon: '🚗', x: 40, y: 15, delay: 6 },
-      { id: 8, icon: '📸', x: 60, y: 80, delay: 7 },
-      { id: 9, icon: '🎒', x: 90, y: 55, delay: 8 },
-      { id: 10, icon: '🌅', x: 30, y: 85, delay: 9 }
+      { id: 1, icon: '✈️', x: 10, y: 20 },
+      { id: 2, icon: '🏨', x: 85, y: 15 },
+      { id: 3, icon: '🗺️', x: 25, y: 70 },
+      { id: 4, icon: '🌴', x: 70, y: 65 },
+      { id: 5, icon: '🏛️', x: 15, y: 45 },
+      { id: 6, icon: '🍕', x: 80, y: 35 },
+      { id: 7, icon: '🚗', x: 40, y: 15 },
+      { id: 8, icon: '📸', x: 60, y: 80 },
+      { id: 9, icon: '🎒', x: 90, y: 55 },
+      { id: 10, icon: '🌅', x: 30, y: 85 }
     ];
     setFloatingIcons(icons);
   }, []);
 
-  const interests = [
+  const interestsList = [
     { id: 'adventure', name: 'Adventure', icon: <Mountain className="w-5 h-5" />, color: 'from-orange-500 to-red-500' },
-    { id: 'culture', name: 'Culture', icon: <Palette className="w-5 h-5" />, color: 'from-purple-500 to-pink-500' },
-    { id: 'food', name: 'Food & Dining', icon: <Utensils className="w-5 h-5" />, color: 'from-yellow-500 to-orange-500' },
-    { id: 'history', name: 'Historical Sites', icon: <History className="w-5 h-5" />, color: 'from-amber-600 to-yellow-600' },
-    { id: 'nightlife', name: 'Nightlife', icon: <Music className="w-5 h-5" />, color: 'from-indigo-500 to-purple-500' },
+    { id: 'culture', name: 'Culture', icon: <Palette className="w-5 h-5" />, color: 'from-purple-500 to-indigo-500' },
+    { id: 'food', name: 'Food & Dining', icon: <Utensils className="w-5 h-5" />, color: 'from-amber-500 to-orange-500' },
+    { id: 'history', name: 'Historical Sites', icon: <History className="w-5 h-5" />, color: 'from-stone-500 to-gray-500' },
+    { id: 'nightlife', name: 'Nightlife', icon: <Music className="w-5 h-5" />, color: 'from-pink-500 to-rose-500' },
     { id: 'photography', name: 'Photography', icon: <Camera className="w-5 h-5" />, color: 'from-blue-500 to-cyan-500' },
-    { id: 'shopping', name: 'Shopping', icon: <ShoppingBag className="w-5 h-5" />, color: 'from-pink-500 to-rose-500' },
+    { id: 'shopping', name: 'Shopping', icon: <ShoppingBag className="w-5 h-5" />, color: 'from-emerald-500 to-green-500' },
     { id: 'nature', name: 'Nature', icon: <Mountain className="w-5 h-5" />, color: 'from-green-500 to-emerald-500' },
-    { id: 'relaxation', name: 'Relaxation', icon: <Coffee className="w-5 h-5" />, color: 'from-teal-500 to-cyan-500' },
-    { id: 'urban', name: 'City Life', icon: <Building2 className="w-5 h-5" />, color: 'from-slate-500 to-gray-500' },
-    { id: 'romance', name: 'Romance', icon: <Heart className="w-5 h-5" />, color: 'from-red-500 to-pink-500' }
+    { id: 'relaxation', name: 'Relaxation', icon: <Coffee className="w-5 h-5" />, color: 'from-amber-500 to-yellow-500' },
+    { id: 'urban', name: 'City Life', icon: <Building2 className="w-5 h-5" />, color: 'from-gray-500 to-slate-500' },
+    { id: 'romance', name: 'Romance', icon: <Heart className="w-5 h-5" />, color: 'from-rose-500 to-pink-500' }
   ];
+
+  const calculateDays = () => {
+    if (!formData.startDate || !formData.endDate) return 0;
+    const start = new Date(formData.startDate);
+    const end = new Date(formData.endDate);
+    const timeDiff = end.getTime() - start.getTime();
+    return Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+  };
+
+  const getBudgetCategory = () => {
+    if (!formData.budget || calculateDays() === 0) return '';
+    const perDay = parseFloat(formData.budget) / calculateDays();
+    
+    if (perDay < 50) return 'Budget Traveler';
+    if (perDay < 100) return 'Moderate Traveler';
+    if (perDay < 200) return 'Comfort Traveler';
+    return 'Luxury Traveler';
+  };
 
   const handleInputChange = (field, value) => {
     setFormData({ ...formData, [field]: value });
   };
 
-  const toggleInterest = (interestId) => {
+  const toggleInterest = (id) => {
     const current = formData.interests;
-    if (current.includes(interestId)) {
-      handleInputChange('interests', current.filter(id => id !== interestId));
+    if (current.includes(id)) {
+      handleInputChange('interests', current.filter(i => i !== id));
     } else {
-      handleInputChange('interests', [...current, interestId]);
+      handleInputChange('interests', [...current, id]);
     }
-  };
-
-  const calculateDays = () => {
-    if (formData.startDate && formData.endDate) {
-      const start = new Date(formData.startDate);
-      const end = new Date(formData.endDate);
-      const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-      return days > 0 ? days : 0;
-    }
-    return 0;
-  };
-
-  const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-
-  try {
-    const response = await fetch("/api/users/generate-trip", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-
-    const data = await response.json();
-    console.log("Backend response:", data);
-
-    // Use backend response in your suggestions
-    setSuggestions({
-      breakdown: {
-        accommodation: data.perDay * 0.4 * data.totalDays,
-        food: data.perDay * 0.3 * data.totalDays,
-        activities: data.perDay * 0.2 * data.totalDays,
-        transport: data.perDay * 0.1 * data.totalDays,
-      },
-      perDay: data.perDay,
-      recommendations: [
-        { type: "Trip Type", suggestion: data.suggestion },
-      ],
-      itinerary: [],
-    });
-
-    setStep(3);
-  } catch (error) {
-    console.error("Error:", error);
-    alert("Server not responding");
-  }
-
-  setLoading(false);
-};
-
-  const generateRecommendations = (perDay, interests) => {
-    const recs = [];
-    
-    if (perDay < 50) {
-      recs.push({ type: 'Accommodation', suggestion: 'Hostels, budget hotels, or Airbnb shared rooms', icon: <Hotel className="w-5 h-5" /> });
-      recs.push({ type: 'Food', suggestion: 'Street food, local markets, self-catering', icon: <Utensils className="w-5 h-5" /> });
-      recs.push({ type: 'Transport', suggestion: 'Public transport, walking, bike rentals', icon: <Plane className="w-5 h-5" /> });
-    } else if (perDay < 150) {
-      recs.push({ type: 'Accommodation', suggestion: '3-star hotels, private Airbnb', icon: <Hotel className="w-5 h-5" /> });
-      recs.push({ type: 'Food', suggestion: 'Local restaurants, cafes, occasional fine dining', icon: <Utensils className="w-5 h-5" /> });
-      recs.push({ type: 'Transport', suggestion: 'Mix of public transport and taxis', icon: <Plane className="w-5 h-5" /> });
-    } else if (perDay < 300) {
-      recs.push({ type: 'Accommodation', suggestion: '4-star hotels, boutique stays', icon: <Hotel className="w-5 h-5" /> });
-      recs.push({ type: 'Food', suggestion: 'Quality restaurants, food tours', icon: <Utensils className="w-5 h-5" /> });
-      recs.push({ type: 'Transport', suggestion: 'Private transfers, car rentals', icon: <Plane className="w-5 h-5" /> });
-    } else {
-      recs.push({ type: 'Accommodation', suggestion: '5-star hotels, luxury resorts', icon: <Hotel className="w-5 h-5" /> });
-      recs.push({ type: 'Food', suggestion: 'Fine dining, Michelin-star restaurants', icon: <Utensils className="w-5 h-5" /> });
-      recs.push({ type: 'Transport', suggestion: 'Private chauffeur, first-class flights', icon: <Plane className="w-5 h-5" /> });
-    }
-
-    return recs;
-  };
-
-  const generateItinerary = (days, interests, perDay) => {
-    const activities = {
-      adventure: ['Hiking', 'Rock Climbing', 'Zip-lining', 'Kayaking'],
-      culture: ['Museum Visit', 'Local Festival', 'Art Gallery', 'Cultural Show'],
-      food: ['Food Tour', 'Cooking Class', 'Market Visit', 'Wine Tasting'],
-      history: ['Historical Tour', 'Castle Visit', 'Archaeological Site', 'Heritage Walk'],
-      nature: ['Nature Walk', 'Wildlife Safari', 'Botanical Garden', 'National Park'],
-      urban: ['City Tour', 'Architecture Walk', 'Shopping District', 'Rooftop Bar']
-    };
-
-    const itinerary = [];
-    for (let i = 1; i <= Math.min(days, 7); i++) {
-      const dayActivities = [];
-      interests.slice(0, 3).forEach(interest => {
-        const acts = activities[interest] || activities.urban;
-        dayActivities.push(acts[Math.floor(Math.random() * acts.length)]);
-      });
-      
-      itinerary.push({
-        day: i,
-        activities: dayActivities,
-        budget: perDay
-      });
-    }
-    
-    return itinerary;
-  };
-
-  const getBudgetCategory = () => {
-    const budget = parseInt(formData.budget);
-    const days = calculateDays();
-    if (!budget || days === 0) return '';
-    
-    const perDay = budget / days;
-    if (perDay < 50) return 'Budget Traveler';
-    if (perDay < 150) return 'Moderate Traveler';
-    if (perDay < 300) return 'Comfortable Traveler';
-    return 'Luxury Traveler';
   };
 
   const nextStep = () => {
@@ -183,6 +109,80 @@ export default function App() {
     if (step > 1) setStep(step - 1);
   };
 
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+
+  try {
+    const response = await fetch("http://localhost:8000/api/ai/generate-trip", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        destination: formData.destination,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        budget: parseFloat(formData.budget),
+        travelers: parseInt(formData.travelers),
+        interests: formData.interests,
+        accommodation: formData.accommodation,
+        travelStyle: formData.travelStyle
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Backend response:", data);
+
+    // Use the actual backend data directly
+    const totalDays = data.totalDays || calculateDays();
+    const perDay = data.perDay || (parseFloat(formData.budget) / totalDays);
+    
+    setSuggestions({
+      breakdown: {
+        accommodation: perDay * 0.4 * totalDays,
+        food: perDay * 0.3 * totalDays,
+        activities: perDay * 0.2 * totalDays,
+        transport: perDay * 0.1 * totalDays,
+      },
+      perDay: perDay,
+      recommendations: [
+        { 
+          type: "Trip Overview", 
+          suggestion: data.suggestion || `Explore ${formData.destination} with your selected interests.`,
+          icon: <Sparkles className="w-5 h-5 text-white" />
+        },
+        { 
+          type: "Travel Duration", 
+          suggestion: `Your ${totalDays}-day trip to ${data.destination || formData.destination} from ${formData.startDate} to ${formData.endDate}`,
+          icon: <Calendar className="w-5 h-5 text-white" />
+        },
+        { 
+          type: "Budget Planning", 
+          suggestion: `$${formData.budget} total / ${totalDays} days / ${formData.travelers} traveler(s) = $${perDay.toFixed(2)} per day per person`,
+          icon: <DollarSign className="w-5 h-5 text-white" />
+        }
+      ],
+      // Use the actual itinerary from backend
+      itinerary: data.itinerary ? data.itinerary.map(day => ({
+        day: day.day,
+        budget: perDay,
+        activities: day.activities
+      })) : []
+    });
+
+    setStep(3);
+  } catch (error) {
+    console.error("❌ Error calling backend:", error);
+    alert(`Backend connection failed: ${error.message}. Please make sure your Flask server is running on port 5001.`);
+    setLoading(false);
+  }
+};
+  // Rest of your JSX remains exactly the same...
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 text-gray-900 relative overflow-hidden">
       {/* Enhanced Animated Background */}
@@ -210,7 +210,7 @@ export default function App() {
               left: `${item.x}%`,
               top: `${item.y}%`,
               animationDuration: `${15 + item.id * 2}s`,
-              animationDelay: `${item.delay}s`
+              animationDelay: `${item.id * 0.5}s`
             }}
           >
             {item.icon}
@@ -287,7 +287,6 @@ export default function App() {
           )}
 
           <div className="backdrop-blur-md bg-white/80 rounded-3xl p-8 md:p-12 border border-white/50 shadow-2xl">
-            {/* Rest of your existing component content remains exactly the same */}
             {step === 1 && (
               <div className="space-y-8">
                 <div className="text-center mb-8">
@@ -385,7 +384,7 @@ export default function App() {
                     type="number"
                     min="1"
                     value={formData.travelers}
-                    onChange={(e) => handleInputChange('travelers', parseInt(e.target.value))}
+                    onChange={(e) => handleInputChange('travelers', parseInt(e.target.value) || 1)}
                     className="w-full px-6 py-4 bg-white/80 backdrop-blur-md border border-gray-300 rounded-2xl focus:border-rose-500 focus:ring-4 focus:ring-rose-500/20 outline-none transition-all text-gray-900 shadow-sm"
                   />
                 </div>
@@ -413,7 +412,7 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {interests.map((interest) => (
+                  {interestsList.map((interest) => (
                     <button
                       key={interest.id}
                       onClick={() => toggleInterest(interest.id)}
