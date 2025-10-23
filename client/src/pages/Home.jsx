@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Calendar, DollarSign, Users, Cloud, FileText, Map, Sparkles, TrendingUp, Clock, Navigation, Sun, Moon, X, Eye, EyeOff } from 'lucide-react';
 import * as THREE from 'three';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function TripPlannerLanding() {
   const [scrollY, setScrollY] = useState(0);
@@ -188,7 +188,9 @@ export default function TripPlannerLanding() {
       [e.target.name]: e.target.value
     });
   };
-const navigate = useNavigate();
+
+  const navigate = useNavigate();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -614,7 +616,7 @@ const navigate = useNavigate();
         </div>
       )}
 
-      {/* Navigation */}
+      {/* Navigation - Fixed with Link component */}
       <nav className={`relative z-40 flex items-center justify-between px-8 py-6 backdrop-blur-md border-b transition-colors duration-300 ${
         darkMode 
           ? 'bg-slate-900/30 border-white/10' 
@@ -639,6 +641,15 @@ const navigate = useNavigate();
           <a href="#solution" className={`hover:text-blue-400 transition ${
             darkMode ? '' : 'hover:text-blue-600'
           }`}>Solutions</a>
+          {/* Fixed Nearby navigation to use Link */}
+          <Link 
+            to="/nearby" 
+            className={`hover:text-blue-400 transition ${
+              darkMode ? '' : 'hover:text-blue-600'
+            }`}
+          >
+            Nearby
+          </Link>
         </div>
         <div className="flex items-center space-x-4">
           <button 
@@ -681,7 +692,6 @@ const navigate = useNavigate();
               </span>
             </div>
             
-            {/* Corrected Hero Title */}
             <h1 className={`text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent leading-tight ${
               darkMode ? '' : 'from-blue-600 via-purple-600 to-pink-600'
             }`}>
@@ -790,80 +800,80 @@ const navigate = useNavigate();
 
       {/* Problem Section */}
       <section id="problem" className="relative z-10 px-8 py-32">
-  <div className="max-w-6xl mx-auto">
-    <div className="text-center mb-20 animate-on-scroll" id="problem-title">
-      <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent py-2 leading-tight">
-        The Travel Planning Problem
-      </h2>
-      <p className={`text-xl max-w-3xl mx-auto ${
-        darkMode ? 'text-gray-300' : 'text-gray-600'
-      }`}>
-        Traditional trip planning is fragmented and time-consuming. Here's what we're solving:
-      </p>
-    </div>
-
-    <div className="grid md:grid-cols-2 gap-8 mb-16">
-      {problems.map((problem, index) => (
-        <div
-          key={index}
-          id={`problem-${index}`}
-          className={`animate-on-scroll p-6 rounded-xl backdrop-blur-md border transition-all duration-500 hover:scale-102 ${
-            darkMode 
-              ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-              : 'bg-white/60 border-gray-200/50 hover:bg-white/80'
-          }`}
-          style={{
-            animationDelay: `${index * 150}ms`
-          }}
-        >
-          <div className={`flex items-start space-x-4 ${
-            darkMode ? 'text-white' : 'text-gray-900'
-          }`}>
-            <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center flex-shrink-0 mt-1`}>
-              {problem.icon}
-            </div>
-            <p className={`text-lg leading-relaxed ${
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-20 animate-on-scroll" id="problem-title">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent py-2 leading-tight">
+              The Travel Planning Problem
+            </h2>
+            <p className={`text-xl max-w-3xl mx-auto ${
               darkMode ? 'text-gray-300' : 'text-gray-600'
             }`}>
-              {problem.text}
+              Traditional trip planning is fragmented and time-consuming. Here's what we're solving:
             </p>
           </div>
+
+          <div className="grid md:grid-cols-2 gap-8 mb-16">
+            {problems.map((problem, index) => (
+              <div
+                key={index}
+                id={`problem-${index}`}
+                className={`animate-on-scroll p-6 rounded-xl backdrop-blur-md border transition-all duration-500 hover:scale-102 ${
+                  darkMode 
+                    ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                    : 'bg-white/60 border-gray-200/50 hover:bg-white/80'
+                }`}
+                style={{
+                  animationDelay: `${index * 150}ms`
+                }}
+              >
+                <div className={`flex items-start space-x-4 ${
+                  darkMode ? 'text-white' : 'text-gray-900'
+                }`}>
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center flex-shrink-0 mt-1`}>
+                    {problem.icon}
+                  </div>
+                  <p className={`text-lg leading-relaxed ${
+                    darkMode ? 'text-gray-300' : 'text-gray-600'
+                  }`}>
+                    {problem.text}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      ))}
-    </div>
-  </div>
-</section>
+      </section>
+
       {/* Solution Section */}
-      {/* Solution Section */}
-<section id="solution" className={`relative z-10 px-8 py-32 transition-colors duration-300 ${
-  darkMode 
-    ? 'bg-gradient-to-b from-transparent via-purple-900/10 to-transparent' 
-    : 'bg-gradient-to-b from-transparent via-purple-50/30 to-transparent'
-}`}>
-  <div className="max-w-4xl mx-auto text-center">
-    <div className="animate-on-scroll" id="solution-title">
-      <h2 className="text-4xl md:text-5xl font-bold mb-6 text-green-400 break-words whitespace-normal">
-  Our Intelligent Solution
-</h2>
-      <div className="space-y-6">
-        {solutions.map((solution, index) => (
-          <p
-            key={index}
-            id={`solution-${index}`}
-            className={`text-xl leading-relaxed animate-on-scroll ${
-              darkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}
-            style={{
-              animationDelay: `${index * 200}ms`
-            }}
-          >
-            {solution}
-          </p>
-        ))}
-      </div>
-    </div>
-  </div>
-</section>
+      <section id="solution" className={`relative z-10 px-8 py-32 transition-colors duration-300 ${
+        darkMode 
+          ? 'bg-gradient-to-b from-transparent via-purple-900/10 to-transparent' 
+          : 'bg-gradient-to-b from-transparent via-purple-50/30 to-transparent'
+      }`}>
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="animate-on-scroll" id="solution-title">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-green-400 break-words whitespace-normal">
+              Our Intelligent Solution
+            </h2>
+            <div className="space-y-6">
+              {solutions.map((solution, index) => (
+                <p
+                  key={index}
+                  id={`solution-${index}`}
+                  className={`text-xl leading-relaxed animate-on-scroll ${
+                    darkMode ? 'text-gray-300' : 'text-gray-600'
+                  }`}
+                  style={{
+                    animationDelay: `${index * 200}ms`
+                  }}
+                >
+                  {solution}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className={`relative z-10 px-8 py-16 border-t transition-colors duration-300 ${

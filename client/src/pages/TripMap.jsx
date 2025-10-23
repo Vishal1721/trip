@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import { 
   MapPin, Navigation, Compass, Users, CloudRain, Shield, Download,
-  Share2, ArrowLeft, Clock, Calendar, Wifi, Phone,
-  Loader2, Utensils, Building2, Mountain, ShoppingBag, Zap
+  Share2, ArrowLeft, Clock, Calendar, Wifi, 
+  Loader2, Utensils, Building2, Mountain, ShoppingBag
 } from 'lucide-react';
+
+// Leaflet CSS (important!)
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
@@ -45,6 +48,10 @@ const categoryIcons = {
 };
 
 const TripMap = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { itinerary, destination, formData, allPlaces } = location.state || {};
+  
   const [selectedDay, setSelectedDay] = useState(1);
   const [userLocation, setUserLocation] = useState(null);
   const [nearbyAmenities, setNearbyAmenities] = useState([]);
@@ -52,81 +59,41 @@ const TripMap = () => {
   const [activeFeature, setActiveFeature] = useState('itinerary');
   const [loading, setLoading] = useState(false);
   const [routeData, setRouteData] = useState(null);
-  const [mapCenter, setMapCenter] = useState([12.9716, 77.5946]);
-  const [isVisible, setIsVisible] = useState(false);
+  const [mapCenter, setMapCenter] = useState([12.9716, 77.5946]); // Default: Bengaluru
 
-  // Mock data for demonstration
-  const destination = "Bangalore";
-  const itinerary = [
-    {
-      day: 1,
-      schedule: [
-        {
-          activity: "Visit Lalbagh Botanical Garden",
-          description: "Explore the famous botanical garden with diverse flora",
-          category: "Park",
-          lat: 12.9507,
-          lon: 77.5848,
-          address: "Mavalli, Bangalore",
-          time_slot: { start_time: "09:00", end_time: "11:00" }
-        },
-        {
-          activity: "Bangalore Palace Tour",
-          description: "Historic palace with Tudor-style architecture",
-          category: "Palace",
-          lat: 12.9985,
-          lon: 77.5926,
-          address: "Vasanth Nagar, Bangalore",
-          time_slot: { start_time: "12:00", end_time: "14:00" }
-        }
-      ]
-    },
-    {
-      day: 2,
-      schedule: [
-        {
-          activity: "Visit Vidhana Soudha",
-          description: "Iconic government building and architectural marvel",
-          category: "Monument",
-          lat: 12.9796,
-          lon: 77.5907,
-          address: "Ambedkar Veedhi, Bangalore",
-          time_slot: { start_time: "10:00", end_time: "12:00" }
-        }
-      ]
-    },
-    {
-      day: 3,
-      schedule: [
-        {
-          activity: "Shopping at Commercial Street",
-          description: "Popular shopping destination",
-          category: "Shopping",
-          lat: 12.9789,
-          lon: 77.6092,
-          address: "Commercial Street, Bangalore",
-          time_slot: { start_time: "11:00", end_time: "14:00" }
-        }
-      ]
-    }
-  ];
-
-  const allPlaces = itinerary.flatMap(day => day.schedule);
-
-  // Fade in animation on mount
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
-
+  // Get current day's activities from real itinerary data
   const getCurrentDayActivities = () => {
+    if (!itinerary) return [];
     const currentDay = itinerary.find(day => day.day === selectedDay);
     return currentDay?.schedule || [];
   };
 
+  // Get ALL places from backend (both scheduled and unscheduled)
   const getAllPlacesForMap = () => {
+    if (!allPlaces || allPlaces.length === 0) {
+      // Fallback: extract from itinerary
+      const allActivities = [];
+      if (itinerary) {
+        itinerary.forEach(day => {
+          if (day.schedule) {
+            day.schedule.forEach(activity => {
+              if (activity.lat && activity.lon) {
+                allActivities.push({
+                  ...activity,
+                  lat: activity.lat,
+                  lng: activity.lon
+                });
+              }
+            });
+          }
+        });
+      }
+      return allActivities;
+    }
     return allPlaces;
   };
 
+  // Get coordinates for current day's activities
   const getCurrentDayCoordinates = () => {
     const activities = getCurrentDayActivities();
     return activities
@@ -140,6 +107,7 @@ const TripMap = () => {
       }));
   };
 
+  // **FREE: Get real nearby amenities using Overpass API**
   const findNearbyAmenities = async (type) => {
     setLoading(true);
     try {
@@ -187,6 +155,7 @@ const TripMap = () => {
     }
   };
 
+  // **FREE: Get weather from Open-Meteo**
   const getWeatherInfo = async () => {
     try {
       const [lat, lng] = mapCenter;
@@ -196,8 +165,13 @@ const TripMap = () => {
       const data = await response.json();
       
       const weatherIcons = {
-        0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
-        45: '🌫️', 61: '🌦️', 80: '🌧️',
+        0: '☀️',  // Clear sky
+        1: '🌤️',  // Mainly clear
+        2: '⛅',  // Partly cloudy
+        3: '☁️',  // Overcast
+        45: '🌫️', // Fog
+        61: '🌦️', // Rain
+        80: '🌧️', // Rain showers
       };
 
       setWeather({
@@ -217,6 +191,7 @@ const TripMap = () => {
     }
   };
 
+  // **FREE: Get user's current location**
   const getCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -231,6 +206,7 @@ const TripMap = () => {
     }
   };
 
+  // **FREE: Calculate route using OSRM**
   const calculateRoute = async () => {
     const currentCoords = getCurrentDayCoordinates();
     if (currentCoords.length < 2) return;
@@ -262,23 +238,34 @@ const TripMap = () => {
     }
   };
 
+  // Get category icon for UI
   const getCategoryIcon = (category) => {
-    const icons = {
+    const categoryIcons = {
       'Temple': <Building2 className="w-4 h-4" />,
       'Restaurant': <Utensils className="w-4 h-4" />,
       'Museum': <Building2 className="w-4 h-4" />,
       'Park': <Mountain className="w-4 h-4" />,
       'Shopping': <ShoppingBag className="w-4 h-4" />,
       'Palace': <Building2 className="w-4 h-4" />,
+      'Beach': <Mountain className="w-4 h-4" />,
+      'Viewpoint': <Mountain className="w-4 h-4" />,
+      'Cafe': <Utensils className="w-4 h-4" />,
+      'Market': <ShoppingBag className="w-4 h-4" />,
+      'Place Of Worship': <Building2 className="w-4 h-4" />,
       'Monument': <Building2 className="w-4 h-4" />,
+      'Gallery': <Building2 className="w-4 h-4" />,
+      'Zoo': <Mountain className="w-4 h-4" />,
+      'Castle': <Building2 className="w-4 h-4" />
     };
-    return icons[category] || <MapPin className="w-4 h-4" />;
+    return categoryIcons[category] || <MapPin className="w-4 h-4" />;
   };
 
+  // Get custom icon for map marker
   const getMapIcon = (category) => {
     return categoryIcons[category] || createCustomIcon('blue');
   };
 
+  // Set map center based on places
   useEffect(() => {
     const allPlaces = getAllPlacesForMap();
     if (allPlaces.length > 0) {
@@ -294,123 +281,83 @@ const TripMap = () => {
     calculateRoute();
   }, [selectedDay]);
 
+  if (!itinerary) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <MapPin className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">No Trip Data</h2>
+          <p className="text-gray-600 mb-4">Please create a trip plan first</p>
+          <button 
+            onClick={() => navigate('/trip-planner')}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+          >
+            Create Trip Plan
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const currentActivities = getCurrentDayActivities();
   const currentCoordinates = getCurrentDayCoordinates();
   const allMapPlaces = getAllPlacesForMap();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
-        <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
-      </div>
-
-      {/* Custom Scrollbar Styles */}
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateX(-20px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        @keyframes scaleIn {
-          from { opacity: 0; transform: scale(0.95); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.6s ease-out forwards;
-        }
-        .animate-slideIn {
-          animation: slideIn 0.5s ease-out forwards;
-        }
-        .animate-scaleIn {
-          animation: scaleIn 0.4s ease-out forwards;
-        }
-        ::-webkit-scrollbar {
-          width: 8px;
-          height: 8px;
-        }
-        ::-webkit-scrollbar-track {
-          background: rgba(15, 23, 42, 0.1);
-          border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb {
-          background: linear-gradient(to bottom, #3b82f6, #8b5cf6);
-          border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(to bottom, #2563eb, #7c3aed);
-        }
-      `}</style>
-
-      {/* Header with Glassmorphism */}
-      <header className="bg-white/10 backdrop-blur-xl border-b border-white/20 p-4 sticky top-0 z-50 shadow-2xl">
-        <div className={`max-w-7xl mx-auto flex items-center justify-between ${isVisible ? 'animate-fadeIn' : 'opacity-0'}`}>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 p-4 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <button
-            className="group flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-xl transition-all duration-300 hover:scale-105 border border-white/20 shadow-lg"
+            onClick={() => navigate('/trip-planner')}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-all"
           >
-            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="font-semibold">Back</span>
+            <ArrowLeft className="w-5 h-5" />
+            Back to Planner
           </button>
           
           <div className="text-center">
-            <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-300 via-purple-300 to-pink-300 bg-clip-text text-transparent animate-pulse">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-700 bg-clip-text text-transparent">
               {destination} Travel Map
             </h1>
-            <div className="flex items-center justify-center gap-3 mt-2">
-              <span className="px-3 py-1 bg-blue-500/20 backdrop-blur-md rounded-full text-blue-200 text-xs font-medium border border-blue-400/30 flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                {allMapPlaces.length} places
-              </span>
-              <span className="px-3 py-1 bg-purple-500/20 backdrop-blur-md rounded-full text-purple-200 text-xs font-medium border border-purple-400/30 flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                Day {selectedDay}
-              </span>
-              <span className="px-3 py-1 bg-pink-500/20 backdrop-blur-md rounded-full text-pink-200 text-xs font-medium border border-pink-400/30 flex items-center gap-1">
-                <Zap className="w-3 h-3" />
-                {currentCoordinates.length} activities
-              </span>
-            </div>
+            <p className="text-gray-600 text-sm">
+              {allMapPlaces.length} places • Day {selectedDay} • {currentCoordinates.length} activities
+            </p>
           </div>
 
-          <button className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl transition-all duration-300 hover:scale-110 hover:rotate-12 border border-white/20 shadow-lg">
-            <Share2 className="w-5 h-5 text-white" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button className="p-2 hover:bg-gray-100 rounded-lg transition-all">
+              <Share2 className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-6 relative z-10">
+      <div className="max-w-7xl mx-auto p-4">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Navigation Tabs with Gradient */}
-            <div className={`bg-white/10 backdrop-blur-xl rounded-3xl p-5 border border-white/20 shadow-2xl ${isVisible ? 'animate-slideIn' : 'opacity-0'}`}>
-              <div className="grid grid-cols-2 gap-3">
+            {/* Navigation Tabs */}
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-gray-200 shadow-sm">
+              <div className="grid grid-cols-2 gap-2">
                 {[
-                  { id: 'itinerary', label: 'Itinerary', icon: <Calendar className="w-5 h-5" />, gradient: 'from-blue-500 to-cyan-500' },
-                  { id: 'navigation', label: 'Navigate', icon: <Navigation className="w-5 h-5" />, gradient: 'from-purple-500 to-pink-500' },
-                  { id: 'amenities', label: 'Nearby', icon: <MapPin className="w-5 h-5" />, gradient: 'from-orange-500 to-red-500' },
-                  { id: 'safety', label: 'Safety', icon: <Shield className="w-5 h-5" />, gradient: 'from-green-500 to-emerald-500' }
-                ].map((tab, index) => (
+                  { id: 'itinerary', label: 'Itinerary', icon: <Calendar className="w-4 h-4" /> },
+                  { id: 'navigation', label: 'Navigate', icon: <Navigation className="w-4 h-4" /> },
+                  { id: 'amenities', label: 'Nearby', icon: <MapPin className="w-4 h-4" /> },
+                  { id: 'safety', label: 'Safety', icon: <Shield className="w-4 h-4" /> }
+                ].map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setActiveFeature(tab.id)}
-                    style={{animationDelay: `${index * 0.1}s`}}
-                    className={`p-4 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 ${
+                    className={`p-3 rounded-xl text-center transition-all ${
                       activeFeature === tab.id 
-                        ? `bg-gradient-to-br ${tab.gradient} text-white shadow-2xl scale-105` 
-                        : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                        ? 'bg-blue-500 text-white shadow-md' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                     }`}
                   >
-                    <div className="flex flex-col items-center gap-2">
-                      <div className={activeFeature === tab.id ? 'animate-bounce' : ''}>
-                        {tab.icon}
-                      </div>
-                      <span className="text-xs font-bold">{tab.label}</span>
+                    <div className="flex flex-col items-center gap-1">
+                      {tab.icon}
+                      <span className="text-xs font-medium">{tab.label}</span>
                     </div>
                   </button>
                 ))}
@@ -419,120 +366,90 @@ const TripMap = () => {
 
             {/* Day Selector */}
             {activeFeature === 'itinerary' && (
-              <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-5 border border-white/20 shadow-2xl animate-scaleIn">
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2 text-lg">
-                  <Calendar className="w-6 h-6 text-blue-400" />
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-gray-200 shadow-sm">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-blue-600" />
                   Trip Days
                 </h3>
-                <div className="space-y-3">
-                  {itinerary.map((day, index) => (
+                <div className="space-y-2">
+                  {itinerary.map((day) => (
                     <button
                       key={day.day}
                       onClick={() => setSelectedDay(day.day)}
-                      style={{animationDelay: `${index * 0.1}s`}}
-                      className={`w-full p-4 rounded-2xl text-left transition-all duration-300 transform hover:scale-105 animate-slideIn ${
+                      className={`w-full p-3 rounded-xl text-left transition-all ${
                         selectedDay === day.day 
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-2xl scale-105' 
-                          : 'bg-white/10 hover:bg-white/20 text-white border border-white/20'
+                          ? 'bg-blue-500 text-white shadow-md' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                       }`}
                     >
-                      <div className="font-bold text-lg">Day {day.day}</div>
-                      <div className="text-sm opacity-90 flex items-center gap-1 mt-1">
-                        <Zap className="w-3 h-3" />
+                      <div className="font-semibold">Day {day.day}</div>
+                      <div className="text-sm opacity-75">
                         {day.schedule ? `${day.schedule.length} activities` : 'Full day'}
                       </div>
                     </button>
                   ))}
                 </div>
-                <div className="mt-4 p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl border border-blue-400/30 backdrop-blur-md">
-                  <p className="text-xs text-blue-200 font-medium flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Showing {allMapPlaces.length} total places in {destination}
+                <div className="mt-3 p-2 bg-blue-50 rounded border border-blue-200">
+                  <p className="text-xs text-blue-700">
+                    📍 Showing {allMapPlaces.length} total places in {destination}
                   </p>
                 </div>
               </div>
             )}
 
             {/* Route Information */}
-            {activeFeature === 'navigation' && (
-              <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-5 border border-white/20 shadow-2xl animate-scaleIn">
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2 text-lg">
-                  <Navigation className="w-6 h-6 text-purple-400" />
+            {activeFeature === 'navigation' && routeData && (
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-blue-200 shadow-sm">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Navigation className="w-5 h-5 text-blue-600" />
                   Route Details
                 </h3>
                 {loading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-8 h-8 animate-spin text-purple-400" />
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
                   </div>
-                ) : routeData ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-3 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-xl border border-blue-400/30">
-                        <div className="text-xs text-blue-200 mb-1">Distance</div>
-                        <div className="font-bold text-white text-lg">{routeData.totalDistance}</div>
-                      </div>
-                      <div className="p-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl border border-purple-400/30">
-                        <div className="text-xs text-purple-200 mb-1">Duration</div>
-                        <div className="font-bold text-white text-lg">{routeData.totalDuration}</div>
-                      </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Distance:</span>
+                      <span className="font-semibold">{routeData.totalDistance}</span>
                     </div>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      <h4 className="font-semibold text-sm text-white/80 flex items-center gap-2">
-                        <Compass className="w-4 h-4" />
-                        Route Steps:
-                      </h4>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Total Time:</span>
+                      <span className="font-semibold">{routeData.totalDuration}</span>
+                    </div>
+                    <div className="space-y-2 mt-3">
+                      <h4 className="font-medium text-sm text-gray-700">Route Steps:</h4>
                       {routeData.steps.map((step, index) => (
-                        <div 
-                          key={index} 
-                          style={{animationDelay: `${index * 0.05}s`}}
-                          className="p-3 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 hover:bg-white/10 transition-all animate-slideIn"
-                        >
-                          <div className="flex items-start gap-2">
-                            <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                              {index + 1}
-                            </span>
-                            <div className="flex-1">
-                              <div className="font-medium text-white text-sm">{step.instruction}</div>
-                              <div className="text-xs text-gray-300 mt-1">{step.distance} • {step.duration}</div>
-                            </div>
-                          </div>
+                        <div key={index} className="text-xs bg-blue-50 p-2 rounded border border-blue-200">
+                          <div className="font-medium">{step.instruction}</div>
+                          <div className="text-gray-600">{step.distance} • {step.duration}</div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Navigation className="w-12 h-12 mx-auto mb-3 text-purple-400 opacity-50" />
-                    <p className="text-white/60 text-sm">Select multiple activities to see route</p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Weather Info with Gradient */}
+            {/* Weather Info */}
             {weather && (
-              <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-5 border border-white/20 shadow-2xl animate-scaleIn">
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2 text-lg">
-                  <CloudRain className="w-6 h-6 text-cyan-400" />
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-gray-200 shadow-sm">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <CloudRain className="w-5 h-5 text-cyan-600" />
                   Weather in {destination}
                 </h3>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="text-6xl animate-bounce">{weather.icon}</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-3xl">{weather.icon}</div>
                   <div className="text-right">
-                    <div className="text-5xl font-extrabold bg-gradient-to-br from-orange-400 to-pink-600 bg-clip-text text-transparent">
-                      {weather.temperature}°C
-                    </div>
-                    <div className="text-sm text-white/70 mt-1">{weather.description}</div>
+                    <div className="text-2xl font-bold text-gray-800">{weather.temperature}°C</div>
+                    <div className="text-sm text-gray-600">{weather.description}</div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center p-3 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl border border-cyan-400/30">
-                    <div className="text-xs text-cyan-200 mb-1">Humidity</div>
-                    <div className="font-bold text-white text-lg">{weather.humidity}%</div>
-                  </div>
-                  <div className="text-center p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl border border-blue-400/30">
-                    <div className="text-xs text-blue-200 mb-1">Status</div>
-                    <div className="font-bold text-white text-sm">Perfect</div>
+                <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+                  <div className="text-center p-2 bg-cyan-50 rounded border border-cyan-200">
+                    <div className="text-gray-600">Humidity</div>
+                    <div className="font-semibold">{weather.humidity}%</div>
                   </div>
                 </div>
               </div>
@@ -540,46 +457,37 @@ const TripMap = () => {
 
             {/* Nearby Amenities */}
             {activeFeature === 'amenities' && (
-              <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-5 border border-white/20 shadow-2xl animate-scaleIn">
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2 text-lg">
-                  <MapPin className="w-6 h-6 text-orange-400" />
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-gray-200 shadow-sm">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-rose-600" />
                   Nearby Places
                 </h3>
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="space-y-2">
                   {[
-                    { type: 'restaurant', label: 'Restaurants', emoji: '🍽️', color: 'from-orange-500 to-red-500' },
-                    { type: 'atm', label: 'ATMs', emoji: '🏧', color: 'from-green-500 to-emerald-500' },
-                    { type: 'hospital', label: 'Hospitals', emoji: '🏥', color: 'from-red-500 to-pink-500' },
-                    { type: 'pharmacy', label: 'Pharmacy', emoji: '💊', color: 'from-blue-500 to-cyan-500' }
-                  ].map((item, index) => (
+                    { type: 'restaurant', label: '🍽️ Restaurants' },
+                    { type: 'atm', label: '🏧 ATMs' },
+                    { type: 'hospital', label: '🏥 Hospitals' },
+                    { type: 'pharmacy', label: '💊 Pharmacy' }
+                  ].map((item) => (
                     <button
                       key={item.type}
                       onClick={() => findNearbyAmenities(item.type)}
                       disabled={loading}
-                      style={{animationDelay: `${index * 0.1}s`}}
-                      className={`p-4 rounded-2xl bg-gradient-to-br ${item.color} text-white transition-all duration-300 transform hover:scale-105 disabled:opacity-50 shadow-lg hover:shadow-2xl animate-scaleIn`}
+                      className="w-full p-3 rounded-lg bg-gray-100 hover:bg-gray-200 transition-all text-gray-700 text-left disabled:opacity-50"
                     >
-                      <div className="text-2xl mb-1">{item.emoji}</div>
-                      <div className="text-xs font-bold">{item.label}</div>
+                      {item.label}
                     </button>
                   ))}
                 </div>
                 
                 {nearbyAmenities.length > 0 && (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    <h4 className="font-semibold text-sm text-white/80 flex items-center gap-2">
-                      <Zap className="w-4 h-4" />
-                      Found Places:
-                    </h4>
-                    {nearbyAmenities.map((amenity, index) => (
-                      <div 
-                        key={amenity.id}
-                        style={{animationDelay: `${index * 0.05}s`}}
-                        className="p-3 bg-white/5 backdrop-blur-md rounded-xl border border-white/10 hover:bg-white/10 transition-all animate-slideIn"
-                      >
-                        <div className="font-medium text-white text-sm">{amenity.name}</div>
-                        <div className="text-xs text-gray-300 mt-1">{amenity.distance}</div>
-                        <div className="text-xs text-gray-400">{amenity.address}</div>
+                  <div className="mt-3 space-y-2">
+                    <h4 className="font-medium text-sm text-gray-700">Found Places:</h4>
+                    {nearbyAmenities.map((amenity) => (
+                      <div key={amenity.id} className="p-2 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="font-medium text-sm">{amenity.name}</div>
+                        <div className="text-xs text-gray-600">{amenity.distance}</div>
+                        <div className="text-xs text-gray-500">{amenity.address}</div>
                       </div>
                     ))}
                   </div>
@@ -589,97 +497,63 @@ const TripMap = () => {
 
             {/* Safety Features */}
             {activeFeature === 'safety' && (
-              <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-5 border border-white/20 shadow-2xl animate-scaleIn">
-                <h3 className="font-bold text-white mb-4 flex items-center gap-2 text-lg">
-                  <Shield className="w-6 h-6 text-green-400" />
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-rose-200 shadow-sm">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-rose-600" />
                   Safety & Emergency
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <button 
                     onClick={() => findNearbyAmenities('hospital')}
-                    className="w-full p-4 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-2xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 font-bold"
+                    className="w-full p-3 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all flex items-center gap-2"
                   >
-                    <Shield className="w-5 h-5" />
+                    <Shield className="w-4 h-4" />
                     Find Hospitals
                   </button>
-                  <button className="w-full p-4 bg-gradient-to-r from-orange-500 to-yellow-600 text-white rounded-2xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2 font-bold">
-                    <Users className="w-5 h-5" />
+                  <button className="w-full p-3 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all flex items-center gap-2">
+                    <Users className="w-4 h-4" />
                     Share Location
                   </button>
-                  
-                  <div className="mt-4 space-y-2">
-                    <h4 className="font-semibold text-sm text-white/80 flex items-center gap-2">
-                      <Phone className="w-4 h-4" />
-                      Emergency Contacts:
-                    </h4>
-                    <div className="p-3 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-400/30">
-                      <div className="text-xs text-red-200 mb-1">Police</div>
-                      <div className="font-bold text-white">100</div>
-                    </div>
-                    <div className="p-3 bg-orange-500/20 backdrop-blur-md rounded-xl border border-orange-400/30">
-                      <div className="text-xs text-orange-200 mb-1">Ambulance</div>
-                      <div className="font-bold text-white">108</div>
-                    </div>
-                    <div className="p-3 bg-yellow-500/20 backdrop-blur-md rounded-xl border border-yellow-400/30">
-                      <div className="text-xs text-yellow-200 mb-1">Fire Department</div>
-                      <div className="font-bold text-white">101</div>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
           </div>
 
           {/* Main Map Area */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Map Container with Overlay Info */}
-            <div className={`bg-white/10 backdrop-blur-xl rounded-3xl p-2 border border-white/20 shadow-2xl relative ${isVisible ? 'animate-scaleIn' : 'opacity-0'}`} style={{animationDelay: '0.2s'}}>
-              {/* Floating Info Badges */}
-              <div className="absolute top-4 left-4 z-[1000] space-y-2">
-                {userLocation && (
-                  <div className="px-4 py-2 bg-green-500/90 backdrop-blur-md rounded-full text-white text-xs font-bold flex items-center gap-2 shadow-lg animate-pulse">
-                    <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
-                    Live Location Active
-                  </div>
-                )}
-                {currentCoordinates.length > 1 && (
-                  <div className="px-4 py-2 bg-blue-500/90 backdrop-blur-md rounded-full text-white text-xs font-bold flex items-center gap-2 shadow-lg">
-                    <Navigation className="w-3 h-3" />
-                    Route Displayed
-                  </div>
-                )}
-              </div>
+          <div className="lg:col-span-3">
+            {/* Real Leaflet Map Container */}
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl p-1 border border-gray-200 shadow-lg h-[500px] mb-6">
+              {loading ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <span className="ml-2 text-gray-600">Loading map...</span>
+                </div>
+              ) : (
+                <MapContainer
+                  center={mapCenter}
+                  zoom={12}
+                  style={{ height: '100%', width: '100%', borderRadius: '12px' }}
+                >
+                  {/* OpenStreetMap tiles (FREE) */}
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
 
-              <div className="h-[600px] rounded-2xl overflow-hidden">
-                {loading ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-blue-900/50 to-purple-900/50">
-                    <Loader2 className="w-12 h-12 animate-spin text-blue-400 mb-4" />
-                    <span className="text-white font-semibold">Loading map...</span>
-                  </div>
-                ) : (
-                  <MapContainer
-                    center={mapCenter}
-                    zoom={13}
-                    style={{ height: '100%', width: '100%' }}
-                  >
-                    <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    />
-
-                    {/* ALL PLACES markers */}
-                    {allMapPlaces.map((place, index) => (
-                      <Marker
-                        key={`all-${index}`}
-                        position={[place.lat, place.lon]}
-                        icon={getMapIcon(place.category)}
-                      >
-                        <Popup>
-                          <div className="p-2 min-w-48">
-                            <h3 className="font-bold text-lg mb-1">
-                              {place.name || place.activity?.replace('Visit ', '')}
-                            </h3>
-                            <p className="text-sm text-gray-600 mb-2">{place.category}</p>
+                  {/* ALL PLACES markers (from backend) */}
+                  {allMapPlaces.map((place, index) => (
+                    <Marker
+                      key={`all-${index}`}
+                      position={[place.lat, place.lon]}
+                      icon={getMapIcon(place.category)}
+                    >
+                      <Popup>
+                        <div className="p-2 min-w-48">
+                          <h3 className="font-bold text-lg mb-1">
+                            {place.name || place.activity?.replace('Visit ', '')}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-2">{place.category}</p>
+                          <div className="space-y-1 text-xs">
                             {place.address && (
                               <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
                                 <span className="font-medium">Location:</span>
@@ -687,124 +561,86 @@ const TripMap = () => {
                               </div>
                             )}
                           </div>
-                        </Popup>
-                      </Marker>
-                    ))}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
 
-                    {/* User location marker */}
-                    {userLocation && (
-                      <Marker position={userLocation} icon={createCustomIcon('green')}>
-                        <Popup>
-                          <div className="p-2">
-                            <h3 className="font-bold">Your Location</h3>
-                            <p className="text-sm text-gray-600">You are here</p>
-                          </div>
-                        </Popup>
-                      </Marker>
-                    )}
+                  {/* User location marker */}
+                  {userLocation && (
+                    <Marker position={userLocation} icon={createCustomIcon('green')}>
+                      <Popup>
+                        <div className="p-2">
+                          <h3 className="font-bold">Your Location</h3>
+                          <p className="text-sm text-gray-600">You are here</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  )}
 
-                    {/* Route polyline for current day */}
-                    {currentCoordinates.length > 1 && (
-                      <Polyline
-                        positions={currentCoordinates.map(coord => [coord.lat, coord.lng])}
-                        color="#3b82f6"
-                        weight={4}
-                        opacity={0.8}
-                      />
-                    )}
+                  {/* Route polyline for current day */}
+                  {currentCoordinates.length > 1 && (
+                    <Polyline
+                      positions={currentCoordinates.map(coord => [coord.lat, coord.lng])}
+                      color="blue"
+                      weight={4}
+                      opacity={0.7}
+                    />
+                  )}
 
-                    {/* Nearby amenities markers */}
-                    {activeFeature === 'amenities' && nearbyAmenities.map((amenity, index) => (
-                      <Marker
-                        key={`amenity-${index}`}
-                        position={amenity.position}
-                        icon={createCustomIcon('gray')}
-                      >
-                        <Popup>
-                          <div className="p-2">
-                            <h3 className="font-bold">{amenity.name}</h3>
-                            <p className="text-sm text-gray-600 capitalize">{amenity.type}</p>
-                            <p className="text-xs text-gray-500">{amenity.address}</p>
-                          </div>
-                        </Popup>
-                      </Marker>
-                    ))}
-                  </MapContainer>
-                )}
-              </div>
+                  {/* Nearby amenities markers */}
+                  {activeFeature === 'amenities' && nearbyAmenities.map((amenity, index) => (
+                    <Marker
+                      key={`amenity-${index}`}
+                      position={amenity.position}
+                      icon={createCustomIcon('gray')}
+                    >
+                      <Popup>
+                        <div className="p-2">
+                          <h3 className="font-bold">{amenity.name}</h3>
+                          <p className="text-sm text-gray-600 capitalize">{amenity.type}</p>
+                          <p className="text-xs text-gray-500">{amenity.address}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                </MapContainer>
+              )}
             </div>
 
-            {/* Current Day Activities with Rich Cards */}
-            <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 shadow-2xl animate-fadeIn" style={{animationDelay: '0.3s'}}>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-extrabold text-white flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
-                    <Calendar className="w-6 h-6 text-white" />
-                  </div>
-                  Day {selectedDay} Schedule
-                </h3>
-                <div className="px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-md rounded-full text-white text-sm font-bold border border-blue-400/30 flex items-center gap-2">
-                  <Zap className="w-4 h-4" />
-                  {currentActivities.length} Activities
-                </div>
-              </div>
-              
+            {/* Current Day Activities */}
+            <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 shadow-lg">
+              <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-blue-600" />
+                Day {selectedDay} Schedule - {currentActivities.length} Activities
+              </h3>
               <div className="space-y-4">
                 {currentActivities.map((activity, index) => (
-                  <div 
-                    key={index}
-                    style={{animationDelay: `${index * 0.1}s`}}
-                    className="group p-5 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-md rounded-2xl border border-white/20 hover:border-white/40 transition-all duration-300 transform hover:scale-[1.02] hover:shadow-2xl animate-slideIn"
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-                          {getCategoryIcon(activity.category)}
-                        </div>
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <h4 className="font-bold text-white text-lg group-hover:text-blue-300 transition-colors">
-                            {activity.activity}
-                          </h4>
-                          <span className="px-3 py-1 bg-purple-500/30 backdrop-blur-md rounded-full text-purple-200 text-xs font-medium border border-purple-400/30">
-                            {activity.category}
-                          </span>
-                        </div>
-                        
-                        <p className="text-sm text-gray-300 mb-3 leading-relaxed">
-                          {activity.description}
-                        </p>
-                        
-                        <div className="flex flex-wrap gap-3">
-                          {activity.time_slot && (
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 backdrop-blur-md rounded-lg border border-blue-400/30">
-                              <Clock className="w-4 h-4 text-blue-300" />
-                              <span className="text-xs text-blue-200 font-medium">
-                                {activity.time_slot.start_time} - {activity.time_slot.end_time}
-                              </span>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/20 backdrop-blur-md rounded-lg border border-green-400/30">
-                            <MapPin className="w-4 h-4 text-green-300" />
-                            <span className="text-xs text-green-200 font-medium">
-                              {activity.address}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                  <div key={index} className="p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 hover:border-blue-300 transition-all">
+                    <div className="flex items-center gap-2 mb-2">
+                      {getCategoryIcon(activity.category)}
+                      <h4 className="font-semibold text-gray-800">{activity.activity}</h4>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">{activity.description}</p>
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      {activity.time_slot && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {activity.time_slot.start_time} - {activity.time_slot.end_time}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {activity.address}
+                      </span>
                     </div>
                   </div>
                 ))}
                 
                 {currentActivities.length === 0 && (
-                  <div className="text-center py-12">
-                    <div className="w-20 h-20 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Calendar className="w-10 h-10 text-white/50" />
-                    </div>
-                    <p className="text-white/60 text-lg font-medium">No activities scheduled for Day {selectedDay}</p>
-                    <p className="text-white/40 text-sm mt-2">Select a different day to view activities</p>
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No activities scheduled for Day {selectedDay}</p>
                   </div>
                 )}
               </div>

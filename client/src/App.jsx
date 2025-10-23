@@ -3,7 +3,7 @@ import Home from "./pages/Home";
 import Input from "./pages/TripPlanner";
 import TripPlanner from "./pages/TripPlanner";
 import TripMap from "./pages/TripMap";
-
+import Nearby from "./pages/NearbyPlaces";
 export default function App() {
   return (
     <Router>
@@ -12,6 +12,7 @@ export default function App() {
         <Route path="/user" element={<Input />} />
         <Route path="/trip-planner" element={<TripPlanner />} />
         <Route path="/trip-map" element={<TripMap />} />
+         <Route path="/nearby" element={<Nearby />} />
       </Routes>
     </Router>
   );
