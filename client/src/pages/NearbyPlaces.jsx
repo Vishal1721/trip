@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Search, Filter, Navigation, Compass, Star, Clock, DollarSign, AlertCircle, RefreshCw } from 'lucide-react';
+import { MapPin, Search, Filter, Navigation, Compass, Star, DollarSign, AlertCircle, RefreshCw, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function NearbyPlanner() {
@@ -11,15 +11,15 @@ export default function NearbyPlanner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [usingMockData, setUsingMockData] = useState(false);
+  const [serverStatus, setServerStatus] = useState('checking');
   const navigate = useNavigate();
 
   const categories = [
-    { id: 'all', name: 'All Places', icon: <Compass className="w-4 h-4" /> },
-    { id: 'restaurant', name: 'Restaurants', icon: <DollarSign className="w-4 h-4" /> },
-    { id: 'hotel', name: 'Hotels', icon: <MapPin className="w-4 h-4" /> },
-    { id: 'medical', name: 'Medical', icon: <Star className="w-4 h-4" /> },
-    { id: 'atm', name: 'ATM/Banks', icon: <DollarSign className="w-4 h-4" /> },
-    { id: 'fuel', name: 'Fuel Stations', icon: <Navigation className="w-4 h-4" /> }
+    { id: 'all', name: 'All Places', icon: <Compass className="w-4 h-4" />, gradient: 'from-purple-500 to-indigo-600' },
+    { id: 'restaurant', name: 'Restaurants', icon: <DollarSign className="w-4 h-4" />, gradient: 'from-orange-500 to-red-500' },
+    { id: 'medical', name: 'Medical', icon: <Star className="w-4 h-4" />, gradient: 'from-red-500 to-pink-600' },
+    { id: 'atm', name: 'ATM/Banks', icon: <DollarSign className="w-4 h-4" />, gradient: 'from-green-500 to-emerald-600' },
+    { id: 'fuel', name: 'Fuel Stations', icon: <Navigation className="w-4 h-4" />, gradient: 'from-yellow-500 to-amber-600' }
   ];
 
   // Enhanced mock data
@@ -68,55 +68,57 @@ export default function NearbyPlanner() {
       lat: 40.7639,
       lon: -73.9724,
       distance: '2.1 km'
-    },
-    { 
-      id: 6, 
-      name: 'Pizza Palace', 
-      category: 'restaurant', 
-      address: '987 Pizza St, New York',
-      lat: 40.7282,
-      lon: -73.9942,
-      distance: '0.3 km'
     }
   ];
 
-  // Try different API URLs in order
-  const API_URLS = [
-    'http://localhost:8000/api/nearby',
-    'http://127.0.0.1:8000/api/nearby', 
-    'http://10.10.68.207:8000/api/nearby'
-  ];
+  const API_BASE = 'http://localhost:8000';
 
   useEffect(() => {
+    checkServerStatus();
     getUserLocation();
   }, []);
 
   useEffect(() => {
-    if (userLocation) {
-      fetchNearbyPlaces(userLocation.lat, userLocation.lng);
+    if (userLocation && serverStatus === 'online') {
+      fetchNearbyPlaces();
     }
-  }, [selectedCategory, radius]);
+  }, [selectedCategory, radius, userLocation, serverStatus]);
+
+  const checkServerStatus = async () => {
+    setServerStatus('checking');
+    try {
+      const response = await fetch(`${API_BASE}/api/health`);
+      if (response.ok) {
+        setServerStatus('online');
+        setError('');
+      } else {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (err) {
+      setServerStatus('offline');
+      setError('Cannot connect to server. Please make sure Flask is running on port 8000.');
+    }
+  };
 
   const getUserLocation = () => {
     setLoading(true);
-    setError('');
     
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
+        (position) => {
           const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude
           };
           setUserLocation(location);
-          await fetchNearbyPlaces(location.lat, location.lng);
+          setLoading(false);
         },
         (error) => {
           console.error('Error getting location:', error);
-          const defaultLocation = { lat: 40.7128, lng: -74.0060 }; // New York
+          const defaultLocation = { lat: 40.7128, lng: -74.0060 };
           setUserLocation(defaultLocation);
           setError('Using default location (New York). Enable location for accurate results.');
-          fetchNearbyPlaces(defaultLocation.lat, defaultLocation.lng, true);
+          setLoading(false);
         },
         {
           enableHighAccuracy: true,
@@ -128,32 +130,13 @@ export default function NearbyPlanner() {
       const defaultLocation = { lat: 40.7128, lng: -74.0060 };
       setUserLocation(defaultLocation);
       setError('Geolocation not supported. Using default location.');
-      fetchNearbyPlaces(defaultLocation.lat, defaultLocation.lng, true);
+      setLoading(false);
     }
   };
 
-  const testApiConnection = async () => {
-    const testUrls = [
-      'http://localhost:8000/api/health',
-      'http://127.0.0.1:8000/api/health',
-      'http://10.10.68.207:8000/api/health'
-    ];
-
-    for (const url of testUrls) {
-      try {
-        const response = await fetch(url);
-        if (response.ok) {
-          console.log(`✅ API is accessible at: ${url}`);
-          return url.replace('/health', '/nearby');
-        }
-      } catch (err) {
-        console.log(`❌ Cannot reach: ${url}`);
-      }
-    }
-    return null;
-  };
-
-  const fetchNearbyPlaces = async (lat, lng, useMock = false) => {
+  const fetchNearbyPlaces = async (useMock = false) => {
+    if (!userLocation) return;
+    
     setLoading(true);
     setError('');
     setUsingMockData(false);
@@ -168,22 +151,16 @@ export default function NearbyPlanner() {
     }
 
     try {
-      console.log('Testing API connection...');
-      const workingApiUrl = await testApiConnection();
+      console.log('📡 Fetching nearby places from API...');
       
-      if (!workingApiUrl) {
-        throw new Error('Cannot connect to any API server');
-      }
-
-      console.log('Fetching nearby places from:', workingApiUrl);
-      const response = await fetch(workingApiUrl, {
+      const response = await fetch(`${API_BASE}/api/nearby`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lat: lat,
-          lon: lng,
+          lat: userLocation.lat,
+          lon: userLocation.lng,
           radius: radius * 1000,
           category: selectedCategory === 'all' ? null : selectedCategory
         })
@@ -194,14 +171,20 @@ export default function NearbyPlanner() {
       }
 
       const data = await response.json();
-      console.log('API Response:', data);
+      console.log('📊 API Response:', data);
       
       if (data.status === 'success' && data.places) {
-        setNearbyPlaces(data.places);
+        // Add distance display
+        const placesWithDisplay = data.places.map(place => ({
+          ...place,
+          distance: `${place.distance_km?.toFixed(1) || '0.0'} km`
+        }));
+        
+        setNearbyPlaces(placesWithDisplay);
         setUsingMockData(false);
         setError('');
       } else {
-        throw new Error(data.error || 'Invalid response format');
+        throw new Error(data.message || 'Invalid response format');
       }
     } catch (err) {
       console.error('API Error:', err);
@@ -223,8 +206,15 @@ export default function NearbyPlanner() {
   };
 
   const handleRetry = () => {
+    checkServerStatus();
     if (userLocation) {
-      fetchNearbyPlaces(userLocation.lat, userLocation.lng);
+      fetchNearbyPlaces();
+    }
+  };
+
+  const handleUseMockData = () => {
+    if (userLocation) {
+      fetchNearbyPlaces(true);
     }
   };
 
@@ -236,12 +226,12 @@ export default function NearbyPlanner() {
 
   const getCategoryColor = (category) => {
     const colors = {
-      restaurant: 'bg-orange-100 text-orange-800 border-orange-200',
-      hotel: 'bg-blue-100 text-blue-800 border-blue-200',
-      medical: 'bg-red-100 text-red-800 border-red-200',
-      atm: 'bg-green-100 text-green-800 border-green-200',
-      fuel: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      other: 'bg-gray-100 text-gray-800 border-gray-200'
+      restaurant: 'bg-gradient-to-r from-orange-100 to-orange-50 text-orange-800 border-orange-200 shadow-orange-100',
+      hotel: 'bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 border-blue-200 shadow-blue-100',
+      medical: 'bg-gradient-to-r from-red-100 to-red-50 text-red-800 border-red-200 shadow-red-100',
+      atm: 'bg-gradient-to-r from-green-100 to-green-50 text-green-800 border-green-200 shadow-green-100',
+      fuel: 'bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 border-yellow-200 shadow-yellow-100',
+      other: 'bg-gradient-to-r from-gray-100 to-gray-50 text-gray-800 border-gray-200 shadow-gray-100'
     };
     return colors[category] || colors.other;
   };
@@ -259,35 +249,47 @@ export default function NearbyPlanner() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200/50">
+      <div className="bg-white/90 backdrop-blur-xl shadow-lg border-b border-gray-200/60">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate(-1)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-3 rounded-2xl hover:bg-gray-100/80 transition-all duration-300 shadow-sm border border-gray-200/50 hover:shadow-md"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl flex items-center justify-center">
-                  <Compass className="w-6 h-6 text-white" />
+              <div className="flex items-center space-x-4">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl transition-all duration-300 ${
+                  serverStatus === 'online' ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-200/50' : 
+                  serverStatus === 'offline' ? 'bg-gradient-to-br from-red-500 to-rose-600 shadow-red-200/50' : 
+                  'bg-gradient-to-br from-yellow-500 to-amber-600 shadow-yellow-200/50'
+                }`}>
+                  <Compass className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900">Nearby Planner</h1>
-                  <p className="text-gray-600">Discover places around you</p>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    Nearby Explorer
+                  </h1>
+                  <p className="text-gray-600 flex items-center space-x-2 mt-1">
+                    <span>Discover places around you</span>
+                    <span className={`w-2 h-2 rounded-full ${
+                      serverStatus === 'online' ? 'bg-green-500 animate-pulse' : 
+                      serverStatus === 'offline' ? 'bg-red-500' : 'bg-yellow-500'
+                    }`}></span>
+                  </p>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               {userLocation && (
-                <div className="flex items-center space-x-2 text-sm text-gray-600 bg-green-50 px-3 py-2 rounded-full">
+                <div className="flex items-center space-x-3 text-sm bg-gradient-to-r from-green-50 to-emerald-50 text-green-800 px-4 py-2.5 rounded-xl border border-green-200 shadow-sm">
                   <Navigation className="w-4 h-4 text-green-600" />
-                  <span>
+                  <span className="font-medium">
                     {userLocation.lat === 40.7128 ? 'New York, NY' : 'Your Location'}
                   </span>
                 </div>
@@ -295,79 +297,107 @@ export default function NearbyPlanner() {
               <button
                 onClick={handleRetry}
                 disabled={loading}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                className="flex items-center space-x-3 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl hover:from-blue-600 hover:to-cyan-700 disabled:opacity-50 transition-all duration-300 shadow-lg shadow-blue-200/50 hover:shadow-xl hover:shadow-blue-300/50 font-medium"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span>Retry</span>
+                <span>Refresh</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Server Status Alert */}
+      {serverStatus === 'offline' && (
+        <div className="bg-gradient-to-r from-red-50 to-rose-50 border-b border-red-200/60">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <WifiOff className="w-5 h-5 text-red-600" />
+                <div>
+                  <span className="text-red-800 font-semibold">Server is offline</span>
+                  <span className="text-red-600 text-sm ml-3">Make sure Flask is running on port 8000</span>
+                </div>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => window.open('http://localhost:8000/api/health', '_blank')}
+                  className="text-sm text-red-700 underline hover:text-red-800 font-medium"
+                >
+                  Test Connection
+                </button>
+                <button
+                  onClick={handleUseMockData}
+                  className="text-sm bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors shadow-sm font-medium"
+                >
+                  Use Sample Data
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Search and Controls */}
-      <div className="bg-white/60 backdrop-blur-md border-b border-gray-200/50">
+      <div className="bg-white/70 backdrop-blur-lg border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {error && (
-            <div className="mb-4 flex items-center justify-between p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 text-yellow-600" />
-                <span className="text-yellow-700 text-sm">{error}</span>
+            <div className="mb-6 flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-2xl shadow-sm">
+              <div className="flex items-center space-x-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600" />
+                <span className="text-yellow-800 text-sm font-medium">{error}</span>
               </div>
-              <button
-                onClick={() => window.open('http://localhost:8000/api/health', '_blank')}
-                className="text-sm text-yellow-700 underline hover:text-yellow-800"
-              >
-                Check Server
-              </button>
             </div>
           )}
 
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search Bar */}
             <div className="flex-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-gray-400" />
               </div>
               <input
                 type="text"
-                placeholder="Search for restaurants, hotels, medical facilities..."
-                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Search for restaurants, medical facilities, ATMs, fuel stations..."
+                className="block w-full pl-12 pr-4 py-4 border border-gray-300 rounded-2xl bg-white shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 text-lg placeholder-gray-400"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={serverStatus !== 'online' && !usingMockData}
               />
             </div>
 
             {/* Radius Filter */}
-            <div className="flex items-center space-x-3 bg-white px-4 py-3 rounded-xl border border-gray-300">
+            <div className="flex items-center space-x-3 bg-white px-5 py-3.5 rounded-2xl border border-gray-300 shadow-lg">
               <Filter className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-700">Radius:</span>
+              <span className="text-sm font-medium text-gray-700">Within</span>
               <select
                 value={radius}
                 onChange={(e) => handleRadiusChange(Number(e.target.value))}
-                className="border-none bg-transparent focus:outline-none focus:ring-0 text-sm"
-                disabled={loading}
+                className="border-none bg-transparent focus:outline-none focus:ring-0 text-sm font-medium text-gray-900"
+                disabled={loading || (serverStatus !== 'online' && !usingMockData)}
               >
                 <option value={1}>1 km</option>
+                <option value={3}>3 km</option>
                 <option value={5}>5 km</option>
                 <option value={10}>10 km</option>
+                <option value={15}>15 km</option>
                 <option value={25}>25 km</option>
               </select>
             </div>
           </div>
 
           {/* Category Filters */}
-          <div className="flex space-x-2 overflow-x-auto mt-4 pb-2">
+          <div className="flex space-x-3 overflow-x-auto mt-6 pb-2 px-1">
             {categories.map((category) => (
               <button
                 key={category.id}
                 onClick={() => handleCategoryChange(category.id)}
-                disabled={loading}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                disabled={loading || (serverStatus !== 'online' && !usingMockData)}
+                className={`flex items-center space-x-3 px-5 py-3 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all duration-300 transform hover:scale-105 shadow-lg ${
                   selectedCategory === category.id
-                    ? 'bg-green-500 text-white shadow-md'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-                } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    ? `bg-gradient-to-r ${category.gradient} text-white shadow-xl scale-105`
+                    : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-md hover:shadow-lg'
+                } ${(loading || serverStatus !== 'online') ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {category.icon}
                 <span>{category.name}</span>
@@ -379,58 +409,71 @@ export default function NearbyPlanner() {
 
       {/* Results Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {loading ? 'Loading places...' : `Found ${filteredPlaces.length} places within ${radius} km`}
-            {usingMockData && !loading && ' (Sample Data)'}
-          </h2>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              {loading ? 'Discovering Places...' : `Found ${filteredPlaces.length} Places`}
+            </h2>
+            <p className="text-gray-600 mt-1">
+              {loading ? 'Searching for nearby places...' : `Within ${radius} km radius`}
+              {usingMockData && !loading && ' • Using sample data'}
+            </p>
+          </div>
           {loading && (
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
+            <div className="flex items-center space-x-3">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="text-gray-600 font-medium">Loading...</span>
+            </div>
           )}
         </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Searching for nearby places...</p>
+          <div className="text-center py-16">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-6"></div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Searching Nearby</h3>
+            <p className="text-gray-600">Finding the best places around you...</p>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
             {filteredPlaces.map((place, index) => (
               <div
                 key={place.id || index}
-                className="bg-white rounded-2xl shadow-sm border border-gray-200/50 p-6 hover:shadow-lg transition-all duration-300"
+                className="bg-white rounded-3xl shadow-lg border border-gray-200/60 p-6 hover:shadow-2xl transition-all duration-500 hover:scale-105 group"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{getCategoryIcon(place.category)}</span>
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">{place.name}</h3>
-                      <p className="text-sm text-gray-500">{place.address}</p>
+                  <div className="flex items-center space-x-4">
+                    <span className="text-3xl group-hover:scale-110 transition-transform duration-300">{getCategoryIcon(place.category)}</span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-bold text-gray-900 truncate">{place.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1 flex items-center space-x-1">
+                        <MapPin className="w-3 h-3" />
+                        <span className="truncate">{place.address}</span>
+                      </p>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getCategoryColor(place.category)}`}>
+                  <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${getCategoryColor(place.category)} shadow-sm`}>
                     {place.category}
                   </span>
                 </div>
                 
                 {place.distance && (
-                  <div className="mb-3">
-                    <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      {place.distance}
+                  <div className="mb-4">
+                    <span className="inline-flex items-center space-x-2 px-3 py-1.5 bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 rounded-full text-sm font-medium border border-blue-200 shadow-sm">
+                      <Navigation className="w-3 h-3" />
+                      <span>{place.distance}</span>
                     </span>
                   </div>
                 )}
                 
-                <div className="flex space-x-2 mt-4">
+                <div className="flex space-x-3 pt-4 border-t border-gray-100">
                   <button 
                     onClick={() => window.open(`https://www.google.com/maps/dir/${userLocation?.lat},${userLocation?.lng}/${place.lat},${place.lon}`, '_blank')}
-                    className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-green-600 transition-colors flex items-center justify-center space-x-2"
+                    className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-xl text-sm font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 flex items-center justify-center space-x-2 shadow-lg shadow-green-200/50 hover:shadow-xl hover:shadow-green-300/50"
                   >
                     <Navigation className="w-4 h-4" />
-                    <span>Directions</span>
+                    <span>Get Directions</span>
                   </button>
-                  <button className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+                  <button className="flex-1 border border-gray-300 text-gray-700 py-3 px-4 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-all duration-300 shadow-sm hover:shadow-md">
                     Save
                   </button>
                 </div>
@@ -440,18 +483,20 @@ export default function NearbyPlanner() {
         )}
 
         {!loading && filteredPlaces.length === 0 && (
-          <div className="text-center py-16">
-            <Compass className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">No places found</h3>
-            <p className="text-gray-600 max-w-md mx-auto">
+          <div className="text-center py-20">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <Compass className="w-10 h-10 text-blue-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">No Places Found</h3>
+            <p className="text-gray-600 max-w-md mx-auto mb-8 text-lg">
               {searchQuery 
-                ? `No results for "${searchQuery}". Try adjusting your search.`
+                ? `No results found for "${searchQuery}". Try adjusting your search.`
                 : 'No places found in this area. Try increasing the search radius or check your location settings.'
               }
             </p>
             <button
               onClick={handleRetry}
-              className="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              className="px-8 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl hover:from-blue-600 hover:to-cyan-700 transition-all duration-300 shadow-lg shadow-blue-200/50 font-semibold"
             >
               Try Again
             </button>
